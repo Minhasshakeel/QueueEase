@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reception: call next patient</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  :root { --bg:#eef3f2; --ink:#14282b; --muted:#5b6f72; --brand:#0e5a63; --line:#c9d6d5; --warn:#a63d2f; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#10191a; --ink:#e6efee; --muted:#93a8aa; --brand:#5cc4cf; --line:#2b3d3f; --warn:#ff9d8f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Trebuchet MS", Verdana, sans-serif; line-height:1.5; }
+  main { max-width:520px; margin:0 auto; padding:32px 20px 48px; }
+  h1 { font-size:1.5rem; margin:0 0 24px; }
+  .current { text-align:center; padding:24px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+  .current .lbl { color:var(--muted); }
+  .current .num { font-size:7rem; font-weight:bold; line-height:1.1; color:var(--brand); }
+  .current .who { font-size:1.25rem; }
+  .current .ph { color:var(--muted); }
+  label { display:block; font-weight:bold; margin:20px 0 6px; }
+  input { width:100%; padding:12px; font-size:1.1rem; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--ink); }
+  input:focus-visible { outline:3px solid var(--brand); outline-offset:2px; }
+  button { width:100%; margin-top:24px; padding:20px; font-size:1.25rem; font-weight:bold; border:0; border-radius:8px; background:var(--brand); color:#fff; cursor:pointer; }
+  @media (prefers-color-scheme: dark) { button { color:#10191a; } }
+  button:focus-visible { outline:3px solid var(--brand); outline-offset:3px; }
+  button:disabled { opacity:.6; cursor:wait; }
+  .msg { margin-top:16px; min-height:1.5em; color:var(--muted); }
+  .msg.err { color:var(--warn); }
+  h2 { font-size:1.1rem; margin:32px 0 8px; }
+  ul { list-style:none; padding:0; margin:0; border-top:1px solid var(--line); }
+  li { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); }
+  li span:last-child { color:var(--muted); }
+</style>
+</head>
+<body>
+<header class="site-header"><div class="bar"><a class="logo" href="index.html"><span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12" stroke-dasharray="2 3"/></svg></span>QueueEase</a><button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav"><span></span></button><nav class="main-nav" id="nav" aria-label="Main"><a class="link" href="index.html">Home</a><a class="link" href="how-it-works.html">How it works</a><a class="link" href="clinics.html">For clinics</a><a class="link" href="about.html">About</a><a class="link" href="contact.html">Contact</a><a class="btn primary" href="find.html">Find a clinic</a></nav></div></header>
+<main>
+  <h1>Reception</h1>
+  <div class="current">
+    <div class="lbl">Now serving</div>
+    <div class="num" id="num">-</div>
+    <div class="who" id="who">No patient called yet</div>
+    <div class="ph" id="ph"></div>
+  </div>
+  <label for="pin">Staff PIN</label>
+  <input id="pin" type="password" inputmode="numeric" autocomplete="off">
+  <button id="next">Call next patient</button>
+  <div class="msg" id="msg" role="status"></div>
+
+  <h2>Called in this session</h2>
+  <ul id="log"></ul>
+</main>
+<footer class="site-footer"><div class="cols">
+<div><div class="brand">QueueEase</div><p>A simpler way to wait for the doctor. Clinic tokens and live queues, built for clinics in Pakistan.</p></div>
+<div><h4>Product</h4><ul><li><a href="find.html">Find a clinic</a></li><li><a href="how-it-works.html">How it works</a></li><li><a href="clinics.html">For clinics</a></li></ul></div>
+<div><h4>Company</h4><ul><li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li><li><a href="faq.html">FAQ</a></li></ul></div>
+<div><h4>Legal</h4><ul><li><a href="privacy.html">Privacy policy</a></li><li><a href="terms.html">Terms of service</a></li><li><a href="register.html">Register your clinic</a></li></ul></div>
+</div><div class="bottom"><div><span>&copy; 2026 QueueEase. All rights reserved.</span><span>Not for emergencies.</span></div></div></footer>
+
+<script>
+  // Change this to your online n8n address when you host it. Use the /webhook/ (production) URL.
+  const BASE = "/api";
+  // Each clinic gets its own link: receptionist-page.html?clinic=1
+  const CLINIC = new URLSearchParams(location.search).get("clinic") || "1";
+  const $ = id => document.getElementById(id);
+
+  $("next").addEventListener("click", async () => {
+    const btn = $("next"), msg = $("msg");
+    const pin = $("pin").value.trim();
+    if (!pin) { msg.className = "msg err"; msg.textContent = "Enter the staff PIN."; return; }
+    btn.disabled = true;
+    msg.className = "msg";
+    msg.textContent = "Calling next patient...";
+    try {
+      const r = await fetch(BASE + "/call-next", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinic_id: Number(CLINIC), pin })
+      });
+      const d = await r.json();
+      if (d.token_number) {
+        $("num").textContent = d.token_number;
+        $("who").textContent = d.patient_name || "";
+        $("ph").textContent = d.phone || "";
+        msg.textContent = "Token " + d.token_number + " called.";
+        const li = document.createElement("li");
+        li.innerHTML = "<span></span><span></span>";
+        li.children[0].textContent = "Token " + d.token_number + " " + (d.patient_name || "");
+        li.children[1].textContent = new Date().toLocaleTimeString();
+        $("log").prepend(li);
+      } else if (d.error === "wrong_pin") {
+        msg.className = "msg err";
+        msg.textContent = "Wrong PIN. Try again.";
+      } else if (d.found === false) {
+        msg.textContent = "No patients are waiting.";
+      } else {
+        throw new Error("unexpected response");
+      }
+    } catch (e) {
+      msg.className = "msg err";
+      msg.textContent = "Could not reach the clinic system. Check your connection and try again.";
+    }
+    btn.disabled = false;
+  });
+</script>
+<script>
+(function () {
+  var h = document.querySelector(".site-header"), t = document.querySelector(".nav-toggle"), n = document.getElementById("nav");
+  function onScroll() { h.classList.toggle("scrolled", window.scrollY > 8); }
+  onScroll(); window.addEventListener("scroll", onScroll, { passive: true });
+  t.addEventListener("click", function () { var o = n.classList.toggle("open"); t.setAttribute("aria-expanded", o); });
+})();
+</script>
+</body>
+</html>
