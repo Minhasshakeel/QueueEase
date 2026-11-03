@@ -4,7 +4,7 @@ Clinic token and live queue system for clinics in Pakistan. Patients take a toke
 
 QueueEase is a working name and can be changed in one search-and-replace.
 
-Status: working prototype (testing stage). See "Current status and limitations" below before using it with real patients.
+Status: working prototype (testing stage). See "Current status and limitations" below before using it with real patients. 
 
 ## Features
 
